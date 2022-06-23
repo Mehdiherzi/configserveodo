@@ -1,0 +1,94 @@
+spring:
+#  main:
+#    web-application-type: reactive
+  application:
+    name: APIGateway
+  cloud:
+    # Configuration de l'API Gateway
+    gateway:
+      discovery:
+        locator:
+          enabled: true #activation eureka locator
+          lowerCaseServiceId: true
+          # car le nom des services est en minuscule dans l'URL
+      # Configuration des routes de l'API Gateway
+      routes:
+        #Service UTILISATEUR-SERVICE
+        - id: utilisateur-service
+          uri: lb://UTILISATEURSSERVICE/ #Attention : lb et pas HTTP. Lb est prêt pour faire du load-balancing
+          predicates:
+            # On matche tout ce qui commence par /api/
+            - Path=/api/utilisateurs/**
+          filters:
+            # On va réécrire l'URL pour enlever le /api/client
+            - RewritePath=/api/utilisateurs(?<segment>/?.*), /$\{segment}
+         #Service CRENEAU-SERVICE
+        - id: creneaux-service
+          uri: lb://CRENEAUXSERVICE/ #Attention : lb et pas HTTP. Lb est prêt pour faire du load-balancing
+          predicates:
+            # On matche tout ce qui commence par /api/
+            - Path=/api/creneaux/**
+          filters:
+            # On va réécrire l'URL pour enlever le /api/client
+            - RewritePath=/api/creneaux(?<segment>/?.*), /$\{segment}
+        #Service COMPOSITEUTILISATEURCRENEAU-SERVICE
+        - id: compositeutilisateurcreneau-service
+          uri: lb://COMPOSITEUTILISATEURCRENEAU/ #Attention : lb et pas HTTP. Lb est prêt pour faire du load-balancing
+          predicates:
+            # On matche tout ce qui commence par /api/
+            - Path=/api/compositeuc/**
+          filters:
+            # On va réécrire l'URL pour enlever le /api/client
+            - RewritePath=/api/compositeuc(?<segment>/?.*), /$\{segment}
+        #Service BADGE-SERVICE
+        - id: badges-service
+          uri: lb://BADGESSERVICE/ #Attention : lb et pas HTTP. Lb est prêt pour faire du load-balancing
+          predicates:
+              # On matche tout ce qui commence par /api/
+            - Path=/api/badges/**
+          filters:
+                  # On va réécrire l'URL pour enlever le /api/client
+            - RewritePath=/api/badges(?<segment>/?.*), /$\{segment}
+      enabled: on # Activation gateway
+    # Activation remontée management dans Eureka
+    config:
+      service-registry:
+        auto-registration:
+          register-management: on
+# Activation des endpoints pour le monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          env,health,
+          info,metrics,
+          loggers,mappings, prometheus
+# Configuration client de l'annuaire
+# L'API Gateway va s'enregistrer comme un micro-service sur l'annuaire
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:10001/eureka/ # url d'accès à l'annuaire
+  instance:
+    metadata-map:
+      prometheus.scrape: "true"
+      prometheus.path: "/actuator/prometheus"
+      prometheus.port: "${management.server.port}"
+      #    instance:
+      #      metadataMap:
+      # on va surcharger le nom de l'application si plusieurs instances de l'API Gateway ont même IP et même port
+      # on surcharge par une valeur random si le nom de l'instance existe déjà.
+#        instanceId: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+
+
+# Configuration du log.
+logging:
+  level:
+    org.springframework.web: INFO # Choix du niveau de log affiché
+# Proprietes du serveur d'entreprise
+server:
+  port: 8000   # HTTP (Tomcat) port
+
+
+
